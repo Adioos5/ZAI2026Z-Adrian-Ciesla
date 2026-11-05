@@ -17,5 +17,34 @@ services:
       timeout: 5s
       retries: 10
 
+  backend:
+    build: ./backend
+    environment:
+      SPRING_PROFILES_ACTIVE: postgres
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-zai}
+      DB_USERNAME: ${POSTGRES_USER:-zai}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-zai}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  sensor_server:
+    build:
+      context: .
+      dockerfile: sensor_server.Dockerfile
+    ports:
+      - "8000:8000"
+
 volumes:
   db-data:
