@@ -43,8 +43,15 @@ services:
     build:
       context: .
       dockerfile: sensor_server.Dockerfile
+    environment:
+      BACKEND_URL: http://backend:8080
+      # Key returned by POST /api/sensors; without it the sensor only serves readings locally.
+      SENSOR_API_KEY: ${SENSOR_API_KEY:-}
     ports:
       - "8000:8000"
+    depends_on:
+      backend:
+        condition: service_healthy
 
 volumes:
   db-data:

@@ -1,26 +1,36 @@
 """Simulated temperature sensor served over HTTP.
 
-A background thread produces a new reading every 2 seconds. Endpoints:
+A background thread produces a new reading every 5 seconds. Endpoints:
     GET /latest   - most recent reading (JSON)
     GET /history  - recent readings, newest last (JSON); ?limit=N
     GET /stream   - Server-Sent Events stream, one event per new reading
 
+If a backend URL and sensor API key are given, every reading is also POSTed
+to <backend>/api/measurements. The key comes from registering the sensor via
+POST /api/sensors on the backend.
+
 Run:  python sensor_server.py [--host 0.0.0.0] [--port 8000]
+                              [--backend-url http://localhost:8080] [--api-key KEY]
+      (or set BACKEND_URL / SENSOR_API_KEY)
 """
 
 import argparse
 import json
 import math
+import os
 import random
 import threading
 import time
+import urllib.error
+import urllib.request
 from collections import deque
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-INTERVAL_SECONDS = 2.0
+INTERVAL_SECONDS = 5.0
 HISTORY_SIZE = 500
+PUSH_TIMEOUT_SECONDS = 3.0
 
 
 class TemperatureSensor:
@@ -81,11 +91,39 @@ class ReadingStore:
             return last if last and last["seq"] > seq else None
 
 
-def run_sensor(sensor, store, stop_event):
+class BackendPusher:
+    """Sends readings to the backend's measurement endpoint, authenticated by the sensor's API key."""
+
+    def __init__(self, backend_url, api_key):
+        self.url = backend_url.rstrip("/") + "/api/measurements"
+        self.api_key = api_key
+
+    def push(self, reading):
+        body = json.dumps({"value": reading["temperature"], "timestamp": reading["timestamp"]}).encode()
+        request = urllib.request.Request(
+            self.url,
+            data=body,
+            method="POST",
+            headers={"Content-Type": "application/json", "X-API-Key": self.api_key},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=PUSH_TIMEOUT_SECONDS):
+                pass
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode(errors="replace")
+            print(f"  push failed: HTTP {e.code} {detail}", flush=True)
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            # Backend not up yet or unreachable; the next reading will try again.
+            print(f"  push failed: {getattr(e, 'reason', e)}", flush=True)
+
+
+def run_sensor(sensor, store, stop_event, pusher=None):
     while not stop_event.is_set():
         reading = sensor.read()
         store.add(reading)
         print(f"[{reading['timestamp']}] {reading['temperature']:.2f} °C", flush=True)
+        if pusher:
+            pusher.push(reading)
         stop_event.wait(INTERVAL_SECONDS)
 
 
@@ -152,12 +190,21 @@ def main():
     parser = argparse.ArgumentParser(description="Simulated temperature sensor server")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--backend-url", default=os.environ.get("BACKEND_URL"))
+    parser.add_argument("--api-key", default=os.environ.get("SENSOR_API_KEY"))
     args = parser.parse_args()
+
+    pusher = None
+    if args.backend_url and args.api_key:
+        pusher = BackendPusher(args.backend_url, args.api_key)
+        print(f"Pushing readings to {pusher.url}")
+    elif args.backend_url:
+        print("Backend URL set but no API key; readings will not be pushed")
 
     store = ReadingStore()
     stop_event = threading.Event()
     sensor_thread = threading.Thread(
-        target=run_sensor, args=(TemperatureSensor(), store, stop_event), daemon=True
+        target=run_sensor, args=(TemperatureSensor(), store, stop_event, pusher), daemon=True
     )
     sensor_thread.start()
 
