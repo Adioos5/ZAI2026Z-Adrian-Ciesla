@@ -55,6 +55,8 @@ services:
       BACKEND_URL: http://backend:8080
       # Key returned by POST /api/sensors; without it the sensor only serves readings locally.
       SENSOR_API_KEY: ${SENSOR_API_KEY:-}
+      # Seconds between live readings (60 = every minute).
+      SENSOR_INTERVAL: ${SENSOR_INTERVAL:-60}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
