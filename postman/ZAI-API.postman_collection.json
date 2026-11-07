@@ -1,0 +1,4151 @@
+{
+  "info": {
+    "_postman_id": "7a14a121-e5c3-4379-8174-4f8b6545a8dc",
+    "name": "ZAI 26Z - Serie pomiarowe API",
+    "description": "Full test suite for the ZAI 26Z API contract (zai-api-26z.yaml).\n\nRun the whole collection in order (Collection Runner or `newman run`). It creates its own series and sensor, and deletes them at the end, leaving the F11 sample data untouched.\n\nSet `baseUrl`, `adminUsername` and `adminPassword` in the collection variables (or override with `newman --env-var`).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0. System",
+      "description": "Wake-up / availability check.",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type is application/json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/json');",
+                  "});",
+                  "pm.test('status is ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Auth",
+      "description": "Login (F8), invalid credentials and password-change validation.",
+      "item": [
+        {
+          "name": "Login - wrong password (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"definitely-wrong-password\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - missing fields (400/422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400/422', () => pm.expect(pm.response.code).to.be.oneOf([400, 422]));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - malformed JSON (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": "
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type is application/json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/json');",
+                  "});",
+                  "const b = pm.response.json();",
+                  "pm.test('LoginResponse schema', () => {",
+                  "    pm.expect(b.accessToken).to.be.a('string').and.not.empty;",
+                  "    pm.expect(b.tokenType).to.eql('Bearer');",
+                  "    pm.expect(b.expiresIn).to.be.a('number').and.above(0);",
+                  "});",
+                  "pm.collectionVariables.set('token', b.accessToken);",
+                  "pm.test('No API key, hash or password in the response', () => {",
+                  "    const text = pm.response.text();",
+                  "    const key = pm.collectionVariables.get('apiKey');",
+                  "    if (key) pm.expect(text).to.not.include(key);",
+                  "    pm.expect(text).to.not.match(/\"(apiKey|apiKeyHash|keyHash|hash|password|passwordHash)\"\\s*:/i);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change password - no token (401)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{adminPassword}}\",\n  \"newPassword\": \"something-long-enough\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change password - wrong current password (403)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"definitely-wrong-password\",\n  \"newPassword\": \"something-long-enough\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change password - new password too short (400/422)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{adminPassword}}\",\n  \"newPassword\": \"short\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400/422', () => pm.expect(pm.response.code).to.be.oneOf([400, 422]));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Series",
+      "description": "Series CRUD (F2, F3) with authorization and validation (F4).",
+      "item": [
+        {
+          "name": "Create series - no token (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman {{runId}}\",\n  \"minValue\": 0,\n  \"maxValue\": 100,\n  \"color\": \"#1f77b4\",\n  \"icon\": \"circle\",\n  \"unit\": \"°C\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create series - invalid token (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer not-a-real-token"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman {{runId}}\",\n  \"minValue\": 0,\n  \"maxValue\": 100,\n  \"color\": \"#1f77b4\",\n  \"icon\": \"circle\",\n  \"unit\": \"°C\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create series - non-JSON body (415)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "name=x"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 415', () => pm.response.to.have.status(415));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create series - malformed JSON (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"x\", "
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create series - min >= max (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman {{runId}}\",\n  \"minValue\": 50,\n  \"maxValue\": 10,\n  \"color\": \"#1f77b4\",\n  \"icon\": \"circle\",\n  \"unit\": \"°C\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create series - min == max (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman {{runId}}\",\n  \"minValue\": 10,\n  \"maxValue\": 10,\n  \"color\": \"#1f77b4\",\n  \"icon\": \"circle\",\n  \"unit\": \"°C\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create series - missing name (400/422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"minValue\": 0,\n  \"maxValue\": 100,\n  \"color\": \"#1f77b4\",\n  \"icon\": \"circle\",\n  \"unit\": \"°C\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400/422', () => pm.expect(pm.response.code).to.be.oneOf([400, 422]));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create series - invalid color (400/422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman {{runId}}\",\n  \"minValue\": 0,\n  \"maxValue\": 100,\n  \"color\": \"red\",\n  \"icon\": \"circle\",\n  \"unit\": \"°C\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400/422', () => pm.expect(pm.response.code).to.be.oneOf([400, 422]));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create series - wrong type for minValue (400/422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman {{runId}}\",\n  \"minValue\": \"zero\",\n  \"maxValue\": 100,\n  \"color\": \"#1f77b4\",\n  \"icon\": \"circle\",\n  \"unit\": \"°C\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400/422', () => pm.expect(pm.response.code).to.be.oneOf([400, 422]));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create series (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman {{runId}}\",\n  \"minValue\": 0,\n  \"maxValue\": 100,\n  \"color\": \"#1f77b4\",\n  \"icon\": \"circle\",\n  \"unit\": \"°C\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('runId', Date.now().toString(36));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Content-Type is application/json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/json');",
+                  "});",
+                  "pm.test('Location header points to the new series', () => {",
+                  "    const loc = pm.response.headers.get('Location');",
+                  "    pm.expect(loc, 'Location header').to.be.a('string');",
+                  "    pm.expect(loc).to.match(new RegExp('/api/series/' + pm.response.json().id + '$'));",
+                  "});",
+                  "const seriesSchema = {",
+                  "    type: 'object',",
+                  "    required: ['id', 'name', 'minValue', 'maxValue', 'color'],",
+                  "    properties: {",
+                  "        id: { type: ['integer', 'string'] },",
+                  "        name: { type: 'string' },",
+                  "        minValue: { type: 'number' },",
+                  "        maxValue: { type: 'number' },",
+                  "        color: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },",
+                  "        icon: { type: ['string', 'null'] },",
+                  "        unit: { type: ['string', 'null'] }",
+                  "    }",
+                  "};",
+                  "const b = pm.response.json();",
+                  "pm.test('Series schema', () => pm.response.to.have.jsonSchema(seriesSchema));",
+                  "pm.test('Fields echoed back', () => {",
+                  "    pm.expect(b.name).to.eql('Postman ' + pm.collectionVariables.get('runId'));",
+                  "    pm.expect(b.minValue).to.eql(0);",
+                  "    pm.expect(b.maxValue).to.eql(100);",
+                  "    pm.expect(b.color.toLowerCase()).to.eql('#1f77b4');",
+                  "});",
+                  "pm.collectionVariables.set('seriesId', b.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List series (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type is application/json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/json');",
+                  "});",
+                  "const seriesSchema = {",
+                  "    type: 'object',",
+                  "    required: ['id', 'name', 'minValue', 'maxValue', 'color'],",
+                  "    properties: {",
+                  "        id: { type: ['integer', 'string'] },",
+                  "        name: { type: 'string' },",
+                  "        minValue: { type: 'number' },",
+                  "        maxValue: { type: 'number' },",
+                  "        color: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },",
+                  "        icon: { type: ['string', 'null'] },",
+                  "        unit: { type: ['string', 'null'] }",
+                  "    }",
+                  "};",
+                  "const b = pm.response.json();",
+                  "pm.test('Array of Series', () => {",
+                  "    pm.expect(b).to.be.an('array');",
+                  "    pm.response.to.have.jsonSchema({ type: 'array', items: seriesSchema });",
+                  "});",
+                  "pm.test('Contains the created series', () => {",
+                  "    pm.expect(b.map(s => String(s.id))).to.include(String(pm.collectionVariables.get('seriesId')));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List series - Accept: application/xml (406)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/xml"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 406', () => pm.response.to.have.status(406));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get series (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/series/{{seriesId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series",
+                "{{seriesId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type is application/json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/json');",
+                  "});",
+                  "const seriesSchema = {",
+                  "    type: 'object',",
+                  "    required: ['id', 'name', 'minValue', 'maxValue', 'color'],",
+                  "    properties: {",
+                  "        id: { type: ['integer', 'string'] },",
+                  "        name: { type: 'string' },",
+                  "        minValue: { type: 'number' },",
+                  "        maxValue: { type: 'number' },",
+                  "        color: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },",
+                  "        icon: { type: ['string', 'null'] },",
+                  "        unit: { type: ['string', 'null'] }",
+                  "    }",
+                  "};",
+                  "pm.test('Series schema', () => pm.response.to.have.jsonSchema(seriesSchema));",
+                  "pm.test('Correct id', () => pm.expect(String(pm.response.json().id)).to.eql(String(pm.collectionVariables.get('seriesId'))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get series - not found (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/series/999999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series",
+                "999999999"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update series - no token (401)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series/{{seriesId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series",
+                "{{seriesId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman {{runId}}\",\n  \"minValue\": 0,\n  \"maxValue\": 100,\n  \"color\": \"#1f77b4\",\n  \"icon\": \"circle\",\n  \"unit\": \"°C\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update series - min >= max (422)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series/{{seriesId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series",
+                "{{seriesId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman {{runId}}\",\n  \"minValue\": 100,\n  \"maxValue\": 0,\n  \"color\": \"#1f77b4\",\n  \"icon\": \"circle\",\n  \"unit\": \"°C\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update series - not found (404)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series/999999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series",
+                "999999999"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman {{runId}}\",\n  \"minValue\": 0,\n  \"maxValue\": 100,\n  \"color\": \"#1f77b4\",\n  \"icon\": \"circle\",\n  \"unit\": \"°C\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update series (200)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series/{{seriesId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series",
+                "{{seriesId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman {{runId}} (renamed)\",\n  \"minValue\": -10,\n  \"maxValue\": 60,\n  \"color\": \"#ff7f0e\",\n  \"icon\": \"square\",\n  \"unit\": \"%\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type is application/json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/json');",
+                  "});",
+                  "const seriesSchema = {",
+                  "    type: 'object',",
+                  "    required: ['id', 'name', 'minValue', 'maxValue', 'color'],",
+                  "    properties: {",
+                  "        id: { type: ['integer', 'string'] },",
+                  "        name: { type: 'string' },",
+                  "        minValue: { type: 'number' },",
+                  "        maxValue: { type: 'number' },",
+                  "        color: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },",
+                  "        icon: { type: ['string', 'null'] },",
+                  "        unit: { type: ['string', 'null'] }",
+                  "    }",
+                  "};",
+                  "const b = pm.response.json();",
+                  "pm.test('Series schema', () => pm.response.to.have.jsonSchema(seriesSchema));",
+                  "pm.test('All fields replaced', () => {",
+                  "    pm.expect(b.name).to.include('(renamed)');",
+                  "    pm.expect(b.minValue).to.eql(-10);",
+                  "    pm.expect(b.maxValue).to.eql(60);",
+                  "    pm.expect(b.color.toLowerCase()).to.eql('#ff7f0e');",
+                  "    pm.expect(b.icon).to.eql('square');",
+                  "    pm.expect(b.unit).to.eql('%');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get series after update (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/series/{{seriesId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series",
+                "{{seriesId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Update persisted', () => pm.expect(pm.response.json().name).to.include('(renamed)'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Sensors",
+      "description": "Sensor registration, listing and read (F12, T5.5).",
+      "item": [
+        {
+          "name": "List sensors - no token (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register sensor - no token (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman sensor\",\n  \"seriesId\": \"{{seriesId}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register sensor - non-existent series (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman sensor\",\n  \"seriesId\": 999999999\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register sensor - missing name (400/422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seriesId\": {{seriesId}}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400/422', () => pm.expect(pm.response.code).to.be.oneOf([400, 422]));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register sensor - non-JSON body (415)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "name=x"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 415', () => pm.response.to.have.status(415));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register sensor (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman sensor {{runId}}\",\n  \"seriesId\": {{seriesId}}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Content-Type is application/json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/json');",
+                  "});",
+                  "pm.test('Location header points to the new sensors', () => {",
+                  "    const loc = pm.response.headers.get('Location');",
+                  "    pm.expect(loc, 'Location header').to.be.a('string');",
+                  "    pm.expect(loc).to.match(new RegExp('/api/sensors/' + pm.response.json().id + '$'));",
+                  "});",
+                  "const sensorSchema = {",
+                  "    type: 'object',",
+                  "    required: ['id', 'name', 'seriesId'],",
+                  "    properties: {",
+                  "        id: { type: ['integer', 'string'] },",
+                  "        name: { type: 'string' },",
+                  "        seriesId: { type: ['integer', 'string'] }",
+                  "    }",
+                  "};",
+                  "const b = pm.response.json();",
+                  "pm.test('SensorCreated schema', () => pm.response.to.have.jsonSchema(sensorSchema));",
+                  "pm.test('Assigned to the series', () => pm.expect(String(b.seriesId)).to.eql(String(pm.collectionVariables.get('seriesId'))));",
+                  "pm.test('apiKey has at least 32 characters', () => pm.expect(b.apiKey).to.be.a('string').with.length.of.at.least(32));",
+                  "pm.collectionVariables.set('sensorId', b.id);",
+                  "pm.collectionVariables.set('apiKey', b.apiKey);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List sensors (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type is application/json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/json');",
+                  "});",
+                  "const sensorSchema = {",
+                  "    type: 'object',",
+                  "    required: ['id', 'name', 'seriesId'],",
+                  "    properties: {",
+                  "        id: { type: ['integer', 'string'] },",
+                  "        name: { type: 'string' },",
+                  "        seriesId: { type: ['integer', 'string'] }",
+                  "    }",
+                  "};",
+                  "const b = pm.response.json();",
+                  "pm.test('Array of Sensor', () => {",
+                  "    pm.expect(b).to.be.an('array');",
+                  "    pm.response.to.have.jsonSchema({ type: 'array', items: sensorSchema });",
+                  "});",
+                  "pm.test('Contains the registered sensor', () => {",
+                  "    pm.expect(b.map(s => String(s.id))).to.include(String(pm.collectionVariables.get('sensorId')));",
+                  "});",
+                  "pm.test('No API key, hash or password in the response', () => {",
+                  "    const text = pm.response.text();",
+                  "    const key = pm.collectionVariables.get('apiKey');",
+                  "    if (key) pm.expect(text).to.not.include(key);",
+                  "    pm.expect(text).to.not.match(/\"(apiKey|apiKeyHash|keyHash|hash|password|passwordHash)\"\\s*:/i);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get sensor (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors/{{sensorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors",
+                "{{sensorId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type is application/json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/json');",
+                  "});",
+                  "const sensorSchema = {",
+                  "    type: 'object',",
+                  "    required: ['id', 'name', 'seriesId'],",
+                  "    properties: {",
+                  "        id: { type: ['integer', 'string'] },",
+                  "        name: { type: 'string' },",
+                  "        seriesId: { type: ['integer', 'string'] }",
+                  "    }",
+                  "};",
+                  "pm.test('Sensor schema', () => pm.response.to.have.jsonSchema(sensorSchema));",
+                  "pm.test('No API key, hash or password in the response', () => {",
+                  "    const text = pm.response.text();",
+                  "    const key = pm.collectionVariables.get('apiKey');",
+                  "    if (key) pm.expect(text).to.not.include(key);",
+                  "    pm.expect(text).to.not.match(/\"(apiKey|apiKeyHash|keyHash|hash|password|passwordHash)\"\\s*:/i);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get sensor - no token (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors/{{sensorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors",
+                "{{sensorId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get sensor - not found (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors/999999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors",
+                "999999999"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Measurements",
+      "description": "Sending results with a sensor key (F1, F4) and public reading with filters (F5).",
+      "item": [
+        {
+          "name": "Send measurement - no API key (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 20\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send measurement - invalid API key (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "this-key-does-not-exist-0000000000000000"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 20\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send measurement - admin token only (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 20\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send measurement - above maxValue (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 1000\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send measurement - below minValue (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": -1000\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send measurement - timestamp > 5 min in future (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 20,\n  \"timestamp\": \"{{futureTimestamp}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('futureTimestamp', new Date(Date.now() + 3600 * 1000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send measurement - missing value (400/422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timestamp\": \"2026-01-01T00:00:00Z\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400/422', () => pm.expect(pm.response.code).to.be.oneOf([400, 422]));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send measurement - value is a string (400/422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": \"twenty\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400/422', () => pm.expect(pm.response.code).to.be.oneOf([400, 422]));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send measurement - malformed JSON (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"value\": "
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send measurement - non-JSON body (415)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "value=20"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 415', () => pm.response.to.have.status(415));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send measurement with past timestamp (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 21.5,\n  \"timestamp\": \"{{pastTimestamp}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t = new Date(Date.now() - 2 * 3600 * 1000);",
+                  "t.setUTCMilliseconds(0);",
+                  "pm.collectionVariables.set('pastTimestamp', t.toISOString().replace('.000Z', 'Z'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Content-Type is application/json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/json');",
+                  "});",
+                  "pm.test('Location header points to the new measurements', () => {",
+                  "    const loc = pm.response.headers.get('Location');",
+                  "    pm.expect(loc, 'Location header').to.be.a('string');",
+                  "    pm.expect(loc).to.match(new RegExp('/api/measurements/' + pm.response.json().id + '$'));",
+                  "});",
+                  "const measurementSchema = {",
+                  "    type: 'object',",
+                  "    required: ['id', 'seriesId', 'value', 'timestamp'],",
+                  "    properties: {",
+                  "        id: { type: ['integer', 'string'] },",
+                  "        seriesId: { type: ['integer', 'string'] },",
+                  "        value: { type: 'number' },",
+                  "        timestamp: { type: 'string' }",
+                  "    }",
+                  "};",
+                  "const b = pm.response.json();",
+                  "pm.test('Measurement schema', () => pm.response.to.have.jsonSchema(measurementSchema));",
+                  "pm.test('Series comes from the sensor key', () => pm.expect(String(b.seriesId)).to.eql(String(pm.collectionVariables.get('seriesId'))));",
+                  "pm.test('Value and timestamp stored', () => {",
+                  "    pm.expect(b.value).to.eql(21.5);",
+                  "    pm.expect(new Date(b.timestamp).getTime()).to.eql(new Date(pm.collectionVariables.get('pastTimestamp')).getTime());",
+                  "});",
+                  "pm.collectionVariables.set('measurementId', b.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send measurement without timestamp (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 22\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Location header points to the new measurements', () => {",
+                  "    const loc = pm.response.headers.get('Location');",
+                  "    pm.expect(loc, 'Location header').to.be.a('string');",
+                  "    pm.expect(loc).to.match(new RegExp('/api/measurements/' + pm.response.json().id + '$'));",
+                  "});",
+                  "const b = pm.response.json();",
+                  "pm.test('Timestamp defaults to server time', () => {",
+                  "    pm.expect(Math.abs(new Date(b.timestamp).getTime() - Date.now())).to.be.below(5 * 60 * 1000);",
+                  "});",
+                  "pm.collectionVariables.set('measurementId2', b.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send measurement at maxValue boundary (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 60,\n  \"timestamp\": \"{{boundaryTimestamp}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('boundaryTimestamp', new Date(Date.now() - 3600 * 1000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get measurement (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements/{{measurementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements",
+                "{{measurementId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type is application/json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/json');",
+                  "});",
+                  "const measurementSchema = {",
+                  "    type: 'object',",
+                  "    required: ['id', 'seriesId', 'value', 'timestamp'],",
+                  "    properties: {",
+                  "        id: { type: ['integer', 'string'] },",
+                  "        seriesId: { type: ['integer', 'string'] },",
+                  "        value: { type: 'number' },",
+                  "        timestamp: { type: 'string' }",
+                  "    }",
+                  "};",
+                  "pm.test('Measurement schema', () => pm.response.to.have.jsonSchema(measurementSchema));",
+                  "pm.test('Correct id', () => pm.expect(String(pm.response.json().id)).to.eql(String(pm.collectionVariables.get('measurementId'))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get measurement - not found (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements/999999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements",
+                "999999999"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List measurements of the series (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements?series={{seriesId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ],
+              "query": [
+                {
+                  "key": "series",
+                  "value": "{{seriesId}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content-Type is application/json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/json');",
+                  "});",
+                  "const measurementSchema = {",
+                  "    type: 'object',",
+                  "    required: ['id', 'seriesId', 'value', 'timestamp'],",
+                  "    properties: {",
+                  "        id: { type: ['integer', 'string'] },",
+                  "        seriesId: { type: ['integer', 'string'] },",
+                  "        value: { type: 'number' },",
+                  "        timestamp: { type: 'string' }",
+                  "    }",
+                  "};",
+                  "const b = pm.response.json();",
+                  "const sid = String(pm.collectionVariables.get('seriesId'));",
+                  "pm.test('Array of Measurement', () => {",
+                  "    pm.expect(b).to.be.an('array').with.length(3);",
+                  "    pm.response.to.have.jsonSchema({ type: 'array', items: measurementSchema });",
+                  "});",
+                  "pm.test('Only the requested series', () => b.forEach(m => pm.expect(String(m.seriesId)).to.eql(sid)));",
+                  "pm.test('Sorted ascending by timestamp', () => {",
+                  "    const t = b.map(m => new Date(m.timestamp).getTime());",
+                  "    pm.expect(t).to.eql([...t].sort((x, y) => x - y));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List measurements - sort=-timestamp (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements?series={{seriesId}}&sort=-timestamp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ],
+              "query": [
+                {
+                  "key": "series",
+                  "value": "{{seriesId}}"
+                },
+                {
+                  "key": "sort",
+                  "value": "-timestamp"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const t = pm.response.json().map(m => new Date(m.timestamp).getTime());",
+                  "pm.test('Sorted descending by timestamp', () => pm.expect(t).to.eql([...t].sort((x, y) => y - x)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List measurements - closed interval from = to (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements?series={{seriesId}}&from={{pastTimestamp}}&to={{pastTimestamp}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ],
+              "query": [
+                {
+                  "key": "series",
+                  "value": "{{seriesId}}"
+                },
+                {
+                  "key": "from",
+                  "value": "{{pastTimestamp}}"
+                },
+                {
+                  "key": "to",
+                  "value": "{{pastTimestamp}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('from <= timestamp <= to is inclusive on both ends', () => {",
+                  "    pm.expect(b.map(m => String(m.id))).to.eql([String(pm.collectionVariables.get('measurementId'))]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List measurements - time window excludes older (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements?series={{seriesId}}&from={{boundaryTimestamp}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ],
+              "query": [
+                {
+                  "key": "series",
+                  "value": "{{seriesId}}"
+                },
+                {
+                  "key": "from",
+                  "value": "{{boundaryTimestamp}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "const from = new Date(pm.collectionVariables.get('boundaryTimestamp')).getTime();",
+                  "pm.test('All results are >= from', () => b.forEach(m => pm.expect(new Date(m.timestamp).getTime()).to.be.at.least(from)));",
+                  "pm.test('Older measurement filtered out', () => pm.expect(b.map(m => String(m.id))).to.not.include(String(pm.collectionVariables.get('measurementId'))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List measurements - limit=1 (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements?series={{seriesId}}&limit=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ],
+              "query": [
+                {
+                  "key": "series",
+                  "value": "{{seriesId}}"
+                },
+                {
+                  "key": "limit",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Exactly one result', () => pm.expect(pm.response.json()).to.have.length(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List measurements - several series (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements?series={{seriesId}},999999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ],
+              "query": [
+                {
+                  "key": "series",
+                  "value": "{{seriesId}},999999999"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Results only from the listed series', () => {",
+                  "    pm.response.json().forEach(m => pm.expect(String(m.seriesId)).to.eql(String(pm.collectionVariables.get('seriesId'))));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List measurements - invalid from (400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements?from=not-a-date",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "not-a-date"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List measurements - invalid limit (400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements?limit=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update measurement - not allowed (404/405)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements/{{measurementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements",
+                "{{measurementId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404/405', () => pm.expect(pm.response.code).to.be.oneOf([404, 405]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patch measurement - not allowed (404/405)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements/{{measurementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements",
+                "{{measurementId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404/405', () => pm.expect(pm.response.code).to.be.oneOf([404, 405]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete measurement - not allowed (404/405)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements/{{measurementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements",
+                "{{measurementId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404/405', () => pm.expect(pm.response.code).to.be.oneOf([404, 405]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Measurement still exists after modification attempts (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements/{{measurementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements",
+                "{{measurementId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Value unchanged', () => pm.expect(pm.response.json().value).to.eql(21.5));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update series - range would exclude stored results (409)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series/{{seriesId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series",
+                "{{seriesId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman {{runId}}\",\n  \"minValue\": 30,\n  \"maxValue\": 40,\n  \"color\": \"#1f77b4\",\n  \"icon\": \"circle\",\n  \"unit\": \"°C\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Sample data (F11)",
+      "description": "At least 3 series with at least 15 measurements each.",
+      "item": [
+        {
+          "name": "At least 3 series with >= 15 measurements",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements?limit=10000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10000"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const counts = {};",
+                  "pm.response.json().forEach(m => counts[m.seriesId] = (counts[m.seriesId] || 0) + 1);",
+                  "const own = String(pm.collectionVariables.get('seriesId'));",
+                  "const qualifying = Object.entries(counts).filter(([id, n]) => id !== own && n >= 15);",
+                  "console.log('Measurements per series:', JSON.stringify(counts));",
+                  "pm.test('>= 3 series have >= 15 measurements (found ' + qualifying.length + ')', () => {",
+                  "    pm.expect(qualifying.length).to.be.at.least(3);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Unregister sensor, delete series, logout",
+      "description": "Unregistered key stops working immediately while results stay (F12); deleting a series removes its results and sensors; logout invalidates the token.",
+      "item": [
+        {
+          "name": "Unregister sensor - no token (401)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors/{{sensorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors",
+                "{{sensorId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unregister sensor (204)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors/{{sensorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors",
+                "{{sensorId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get unregistered sensor (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors/{{sensorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors",
+                "{{sensorId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unregister sensor again (404)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors/{{sensorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors",
+                "{{sensorId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send measurement with unregistered key (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 20\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Results of unregistered sensor remain (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements/{{measurementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements",
+                "{{measurementId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete series - no token (401)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/series/{{seriesId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series",
+                "{{seriesId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register second sensor for deletion check (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman sensor 2 {{runId}}\",\n  \"seriesId\": {{seriesId}}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('sensorId2', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete series (204)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series/{{seriesId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series",
+                "{{seriesId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get deleted series (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/series/{{seriesId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series",
+                "{{seriesId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete series again (404)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/series/{{seriesId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series",
+                "{{seriesId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Measurements removed with the series (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/measurements/{{measurementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "measurements",
+                "{{measurementId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sensors removed with the series (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors/{{sensorId2}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors",
+                "{{sensorId2}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout - no token (401)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout (204)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Use token after logout (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sensors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sensors"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout again with the same token (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Body is Problem Details (RFC 9457)', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type') || '').to.include('application/problem+json');",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.property('title');",
+                  "    pm.expect(p.status).to.eql(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. Password change cycle (F8)",
+      "description": "Changes the admin password and restores it. Skipped automatically when adminPassword is shorter than 8 characters, because the contract requires newPassword >= 8 and the original could then not be restored.",
+      "item": [
+        {
+          "name": "Login (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if ((pm.collectionVariables.get('adminPassword') || '').length < 8) {",
+                  "    console.log('Skipped: adminPassword is shorter than 8 characters, so it could not be restored afterwards.');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('token', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change password (204)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{adminPassword}}\",\n  \"newPassword\": \"{{adminPassword}}-tmp\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if ((pm.collectionVariables.get('adminPassword') || '').length < 8) {",
+                  "    console.log('Skipped: adminPassword is shorter than 8 characters, so it could not be restored afterwards.');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login with old password fails (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if ((pm.collectionVariables.get('adminPassword') || '').length < 8) {",
+                  "    console.log('Skipped: adminPassword is shorter than 8 characters, so it could not be restored afterwards.');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login with new password (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}-tmp\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if ((pm.collectionVariables.get('adminPassword') || '').length < 8) {",
+                  "    console.log('Skipped: adminPassword is shorter than 8 characters, so it could not be restored afterwards.');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('token', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Restore original password (204)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{adminPassword}}-tmp\",\n  \"newPassword\": \"{{adminPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if ((pm.collectionVariables.get('adminPassword') || '').length < 8) {",
+                  "    console.log('Skipped: adminPassword is shorter than 8 characters, so it could not be restored afterwards.');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login with original password (200)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if ((pm.collectionVariables.get('adminPassword') || '').length < 8) {",
+                  "    console.log('Skipped: adminPassword is shorter than 8 characters, so it could not be restored afterwards.');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('token', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout (204)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if ((pm.collectionVariables.get('adminPassword') || '').length < 8) {",
+                  "    console.log('Skipped: adminPassword is shorter than 8 characters, so it could not be restored afterwards.');",
+                  "    pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "adminUsername",
+      "value": "admin"
+    },
+    {
+      "key": "adminPassword",
+      "value": "admin"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "runId",
+      "value": ""
+    },
+    {
+      "key": "seriesId",
+      "value": ""
+    },
+    {
+      "key": "sensorId",
+      "value": ""
+    },
+    {
+      "key": "sensorId2",
+      "value": ""
+    },
+    {
+      "key": "apiKey",
+      "value": ""
+    },
+    {
+      "key": "measurementId",
+      "value": ""
+    },
+    {
+      "key": "measurementId2",
+      "value": ""
+    },
+    {
+      "key": "pastTimestamp",
+      "value": ""
+    },
+    {
+      "key": "boundaryTimestamp",
+      "value": ""
+    },
+    {
+      "key": "futureTimestamp",
+      "value": ""
+    }
+  ]
+}
