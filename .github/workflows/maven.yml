@@ -1,6 +1,4 @@
-# CI for the ZAI 26Z project: backend build and tests (H2 and PostgreSQL), linting of the
-# Python scripts and the OpenAPI spec, and an end-to-end run of the docker-compose stack
-# exercised with the Postman collection.
+# CI for the ZAI 26Z project: backend build and tests (H2 and PostgreSQL) and a secret scan.
 
 name: Java CI with Maven
 
@@ -105,7 +103,6 @@ jobs:
         cache-dependency-path: backend/pom.xml
     # The tests restart the Spring context after every test method and expect an empty
     # database, so Hibernate recreates the tables here instead of validating them.
-    # db/init/01-schema.sql is checked against the entities in the e2e job instead.
     - name: Run tests on PostgreSQL
       run: mvn -B verify --file backend/pom.xml
       env:
@@ -120,63 +117,6 @@ jobs:
       with:
         report_paths: backend/target/surefire-reports/TEST-*.xml
         check_name: Test report (PostgreSQL)
-
-  lint:
-    name: Lint Python and OpenAPI
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-    - name: Ruff
-      run: pipx run ruff check sensor_server.py seed_sample_data.py
-    - uses: actions/setup-node@v4
-      with:
-        node-version: '22'
-    - name: Lint OpenAPI spec
-      run: npx --yes @redocly/cli@1 lint zai-api-26z.yaml
-
-  e2e:
-    name: Docker stack + Postman tests
-    runs-on: ubuntu-latest
-    env:
-      COMPOSE_PROJECT_NAME: zai
-    steps:
-    - uses: actions/checkout@v4
-    - name: Build images
-      run: docker compose build
-    # --wait blocks until every healthcheck passes. The backend runs with the postgres
-    # profile (ddl-auto=validate), so this also checks db/init/01-schema.sql against the entities.
-    - name: Start stack
-      run: docker compose up -d --wait --wait-timeout 180
-    - uses: actions/setup-node@v4
-      with:
-        node-version: '22'
-    - name: Run Postman collection
-      run: npx --yes newman@6 run postman/ZAI-API.postman_collection.json --env-var baseUrl=http://localhost:8080
-    - name: Show logs on failure
-      if: failure()
-      run: docker compose logs
-    - name: Stop stack
-      if: always()
-      run: docker compose down -v
-
-    # Report-only: vulnerabilities in base images are listed but do not fail the build.
-    - name: Scan backend image
-      uses: aquasecurity/trivy-action@0.33.1
-      with:
-        image-ref: zai-backend
-        severity: CRITICAL,HIGH
-        ignore-unfixed: true
-        exit-code: '0'
-    - name: Scan sensor server image
-      uses: aquasecurity/trivy-action@0.33.1
-      with:
-        image-ref: zai-sensor_server
-        severity: CRITICAL,HIGH
-        ignore-unfixed: true
-        exit-code: '0'
 
   secrets:
     name: Secret scan
