@@ -1,6 +1,6 @@
 # CI for the ZAI 26Z project: backend build and tests (H2 and PostgreSQL) and a secret scan.
 
-name: Java CI with Maven
+name: Backend CI
 
 on:
   push:
