@@ -267,8 +267,8 @@ def parse_args():
                         help="sensor API key from POST /api/sensors (env SENSOR_API_KEY)")
 
     timing = parser.add_argument_group("timing")
-    timing.add_argument("--interval", type=float, default=env_float("SENSOR_INTERVAL", 5.0),
-                        help="seconds between readings (env SENSOR_INTERVAL)")
+    timing.add_argument("--interval", type=float, default=env_float("SENSOR_INTERVAL", 60.0),
+                        help="seconds between readings, default 60 = 1 min (env SENSOR_INTERVAL)")
     timing.add_argument("--count", type=int, default=None,
                         help="number of readings; live mode runs forever without it, --backfill requires it")
     timing.add_argument("--backfill", action="store_true",

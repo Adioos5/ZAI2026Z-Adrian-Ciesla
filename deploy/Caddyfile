@@ -1,0 +1,19 @@
+# Reverse proxy in front of the backend. Caddy redirects HTTP to HTTPS and
+# obtains/renews the certificate for {$DOMAIN} on its own.
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		# API-only for now (E1). Relax when the SPA is served from this host (E2).
+		Content-Security-Policy "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+		-Server
+	}
+
+	# Sets X-Forwarded-For/-Proto/-Host, which Spring reads (server.forward-headers-strategy).
+	reverse_proxy backend:8080
+}

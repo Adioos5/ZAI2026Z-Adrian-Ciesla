@@ -4093,7 +4093,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:8080"
+      "value": "https://207-154-224-145.sslip.io"
     },
     {
       "key": "adminUsername",
