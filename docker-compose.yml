@@ -1,12 +1,14 @@
 services:
   db:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-zai}
       POSTGRES_USER: ${POSTGRES_USER:-zai}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zai}
     ports:
-      - "5432:5432"
+      # Bound to loopback only: reachable from this machine (e.g. psql, IDE), never from the internet.
+      - "127.0.0.1:5432:5432"
     volumes:
       # Scripts here run only when the data volume is empty (first start or after `docker compose down -v`).
       - ./db/init:/docker-entrypoint-initdb.d:ro
@@ -19,6 +21,7 @@ services:
 
   backend:
     build: ./backend
+    restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: postgres
       DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-zai}
@@ -27,8 +30,12 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-*}
+      # Keeps the JVM small enough for a 1 GB VM.
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=60 -XX:+UseSerialGC}
+    mem_limit: ${BACKEND_MEM_LIMIT:-640m}
     ports:
-      - "8080:8080"
+      # Loopback only. Locally use http://localhost:8080; on the server the public entry point is Caddy.
+      - "127.0.0.1:8080:8080"
     depends_on:
       db:
         condition: service_healthy
@@ -36,22 +43,46 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health || exit 1"]
       interval: 10s
       timeout: 5s
-      start_period: 30s
+      start_period: 60s
       retries: 5
 
   sensor_server:
     build:
       context: .
       dockerfile: sensor_server.Dockerfile
+    restart: unless-stopped
     environment:
       BACKEND_URL: http://backend:8080
       # Key returned by POST /api/sensors; without it the sensor only serves readings locally.
       SENSOR_API_KEY: ${SENSOR_API_KEY:-}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # Public HTTPS entry point, only started with `--profile prod` (on the server).
+  # Obtains and renews a Let's Encrypt certificate for $DOMAIN automatically.
+  caddy:
+    image: caddy:2.10-alpine
+    profiles: [prod]
+    restart: unless-stopped
+    environment:
+      # Set DOMAIN in .env on the server (deploy/deploy.sh refuses to start without it).
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
     depends_on:
       backend:
         condition: service_healthy
 
 volumes:
   db-data:
+  caddy-data:
+  caddy-config:
